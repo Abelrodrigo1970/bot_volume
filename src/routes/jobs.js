@@ -10,74 +10,78 @@ function getCronTokenFromRequest(request) {
   return Array.isArray(header) ? header[0] : header;
 }
 
-export async function registerJobRoutes(app, config) {
-  app.post("/jobs/signal", async (request, reply) => {
-    const token = getCronTokenFromRequest(request);
-    if (token !== config.CRON_TOKEN) {
-      return reply.code(401).send({ error: "Unauthorized" });
+async function handleJobsSignal(request, reply, config) {
+  const token = getCronTokenFromRequest(request);
+  if (token !== config.CRON_TOKEN) {
+    return reply.code(401).send({ error: "Unauthorized" });
+  }
+
+  const symbols = config.useDynamicSymbols
+    ? await getFuturesSymbols(config.symbolLimit)
+    : config.symbols;
+
+  const jobRun = await prisma.jobRun.create({
+    data: {
+      source: "cron-job.org",
+      symbols:
+        symbols.length > 100
+          ? `dynamic (${symbols.length} symbols)`
+          : symbols.join(",")
+    }
+  });
+
+  try {
+    const bySymbol = [];
+    let openedTrades = 0;
+    let exitsCount = 0;
+    let signalsCount = 0;
+
+    for (const symbol of symbols) {
+      const result = await processSymbol(symbol, config);
+      bySymbol.push(result);
+      if (result.openedTrade) {
+        openedTrades += 1;
+      }
+      exitsCount += result.exits.length;
+      if (result.signal) {
+        signalsCount += 1;
+      }
     }
 
-    const symbols = config.useDynamicSymbols
-      ? await getFuturesSymbols(config.symbolLimit)
-      : config.symbols;
-
-    const jobRun = await prisma.jobRun.create({
+    await prisma.jobRun.update({
+      where: { id: jobRun.id },
       data: {
-        source: "cron-job.org",
-        symbols:
-          symbols.length > 100
-            ? `dynamic (${symbols.length} symbols)`
-            : symbols.join(",")
+        finishedAt: new Date(),
+        success: true,
+        openedTrades,
+        exitsCount,
+        signalsCount
       }
     });
 
-    try {
-      const bySymbol = [];
-      let openedTrades = 0;
-      let exitsCount = 0;
-      let signalsCount = 0;
-
-      for (const symbol of symbols) {
-        const result = await processSymbol(symbol, config);
-        bySymbol.push(result);
-        if (result.openedTrade) {
-          openedTrades += 1;
-        }
-        exitsCount += result.exits.length;
-        if (result.signal) {
-          signalsCount += 1;
-        }
+    return reply.send({
+      ok: true,
+      runId: jobRun.id,
+      openedTrades,
+      exitsCount,
+      signalsCount,
+      symbols: bySymbol
+    });
+  } catch (error) {
+    await prisma.jobRun.update({
+      where: { id: jobRun.id },
+      data: {
+        finishedAt: new Date(),
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error"
       }
+    });
+    throw error;
+  }
+}
 
-      await prisma.jobRun.update({
-        where: { id: jobRun.id },
-        data: {
-          finishedAt: new Date(),
-          success: true,
-          openedTrades,
-          exitsCount,
-          signalsCount
-        }
-      });
-
-      return reply.send({
-        ok: true,
-        runId: jobRun.id,
-        openedTrades,
-        exitsCount,
-        signalsCount,
-        symbols: bySymbol
-      });
-    } catch (error) {
-      await prisma.jobRun.update({
-        where: { id: jobRun.id },
-        data: {
-          finishedAt: new Date(),
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error"
-        }
-      });
-      throw error;
-    }
-  });
+export async function registerJobRoutes(app, config) {
+  const handler = (request, reply) => handleJobsSignal(request, reply, config);
+  app.get("/jobs/signal", handler);
+  app.post("/jobs/signal", handler);
 }
