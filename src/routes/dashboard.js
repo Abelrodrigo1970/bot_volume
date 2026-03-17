@@ -153,7 +153,45 @@ export async function registerDashboardRoutes(app, config) {
     <div class="card"><strong>Win rate</strong><br>${payload.winRate.toFixed(2)}%</div>
     <div class="card"><strong>Total PnL</strong><br>$${currency(payload.totalPnlUsd)}</div>
     <div class="card"><strong>Total exits</strong><br>${payload.exitsCount}</div>
+    <div class="card">
+      <strong>Atualizar dados</strong><br>
+      <button type="button" onclick="location.reload()" style="margin-top:6px;padding:6px 12px;background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:6px;cursor:pointer;">Atualizar</button>
+    </div>
   </div>
+
+  <h2>Últimas execuções</h2>
+  <p style="font-size:13px;color:#9ca3af;margin:0 0 8px;">A procura em 500 símbolos pode demorar vários minutos. Clica <strong>Atualizar</strong> para ver o estado e os trades.</p>
+  <table style="margin-bottom:24px;">
+    <thead>
+      <tr>
+        <th>Início</th>
+        <th>Fim</th>
+        <th>Origem</th>
+        <th>Símbolos</th>
+        <th>Estado</th>
+        <th>Trades abertos</th>
+        <th>Sinais</th>
+        <th>Erro</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${(payload.recentRuns || [])
+        .map(
+          (r) => `
+        <tr>
+          <td>${formatDateTime(r.createdAt)}</td>
+          <td>${r.finishedAt ? formatDateTime(r.finishedAt) : "<em>a correr...</em>"}</td>
+          <td>${r.source || "-"}</td>
+          <td>${r.symbols || "-"}</td>
+          <td>${r.finishedAt ? (r.success ? "OK" : "Falhou") : "A correr"}</td>
+          <td>${r.openedTrades ?? "-"}</td>
+          <td>${r.signalsCount ?? "-"}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${r.error || "-"}</td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>
 
   <h2>Histórico de Trades</h2>
   <table>
