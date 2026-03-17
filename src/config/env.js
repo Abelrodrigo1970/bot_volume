@@ -13,7 +13,7 @@ const envSchema = z.object({
     .transform((v) => v === "true" || v === "1")
     .default("true"),
   SYMBOL_LIMIT: z.coerce.number().int().min(1).max(1000).default(500),
-  INTERVAL: z.string().default("1h"),
+  INTERVAL: z.string().default("15m"),
   VOLUME_WINDOW: z.coerce.number().int().positive().default(20),
   SPIKE_MULTIPLIER: z.coerce.number().positive().default(6),
   BUY_NOTIONAL_USD: z.coerce.number().positive().default(100),

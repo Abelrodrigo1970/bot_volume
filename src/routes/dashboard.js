@@ -90,11 +90,18 @@ export async function registerDashboardRoutes(app, config) {
     });
     const payload = stats.json();
 
-    const recentTrades = await prisma.trade.findMany({
-      include: { exits: true },
-      orderBy: { openedAt: "desc" },
-      take: 20
-    });
+    const [recentTrades, recentLongSignals] = await Promise.all([
+      prisma.trade.findMany({
+        include: { exits: true },
+        orderBy: { openedAt: "desc" },
+        take: 20
+      }),
+      prisma.signal.findMany({
+        where: { side: "LONG" },
+        orderBy: { createdAt: "desc" },
+        take: 30
+      })
+    ]);
 
     const rows = recentTrades
       .map((trade) => {
@@ -141,6 +148,7 @@ export async function registerDashboardRoutes(app, config) {
 </head>
 <body>
   <h1>Binance Futures - Volume Spike Bot</h1>
+  <p style="font-size:13px;color:#9ca3af;margin:0 0 12px;">Estratégia: intervalo <strong>${config.INTERVAL}</strong>, janela <strong>${config.VOLUME_WINDOW}</strong> velas, spike ≥<strong>${config.SPIKE_MULTIPLIER}×</strong> média + vela bullish. Alterar no Railway (Variables: INTERVAL, VOLUME_WINDOW, SPIKE_MULTIPLIER).</p>
   <div class="grid">
     <div class="card"><strong>Total trades</strong><br>${payload.totalTrades}</div>
     <div class="card">
@@ -160,7 +168,7 @@ export async function registerDashboardRoutes(app, config) {
   </div>
 
   <h2>Últimas execuções</h2>
-  <p style="font-size:13px;color:#9ca3af;margin:0 0 8px;">A procura em 500 símbolos pode demorar vários minutos. Clica <strong>Atualizar</strong> para ver o estado e os trades.</p>
+  <p style="font-size:13px;color:#9ca3af;margin:0 0 8px;">A procura em 500 símbolos pode demorar vários minutos. Clica <strong>Atualizar</strong> para ver o estado e os trades. <strong>Sinais LONG</strong> = símbolos com volume ≥6× média (20h) + vela bullish. Se Sinais LONG &gt; 0 mas Trades = 0, a ordem na Binance pode ter falhado (ver logs no Railway).</p>
   <table style="margin-bottom:24px;">
     <thead>
       <tr>
@@ -170,7 +178,7 @@ export async function registerDashboardRoutes(app, config) {
         <th>Símbolos</th>
         <th>Estado</th>
         <th>Trades abertos</th>
-        <th>Sinais</th>
+        <th>Sinais LONG</th>
         <th>Erro</th>
       </tr>
     </thead>
@@ -190,6 +198,33 @@ export async function registerDashboardRoutes(app, config) {
         </tr>`
         )
         .join("")}
+    </tbody>
+  </table>
+
+  <h2>Últimos sinais LONG</h2>
+  <p style="font-size:13px;color:#9ca3af;margin:0 0 8px;">Símbolos que cumpriram a regra (volume ≥6× média + vela bullish). Se aparecem aqui mas não há trade no histórico, a ordem na Binance pode ter falhado (ver logs).</p>
+  <table style="margin-bottom:24px;">
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>Data/Hora</th>
+        <th>Spike (×média)</th>
+        <th>Motivo</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${recentLongSignals
+        .map(
+          (s) => `
+        <tr>
+          <td>${s.symbol}</td>
+          <td>${formatDateTime(s.createdAt)}</td>
+          <td>${Number(s.spikeRatio).toFixed(2)}×</td>
+          <td style="max-width:220px;">${s.reason || "-"}</td>
+        </tr>`
+        )
+        .join("")}
+      ${recentLongSignals.length === 0 ? "<tr><td colspan='4'>Nenhum sinal LONG registado ainda.</td></tr>" : ""}
     </tbody>
   </table>
 

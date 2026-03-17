@@ -30,7 +30,7 @@ async function runJobInBackground(jobRunId, symbols, config, log) {
         log.info({ symbol, jobRunId }, `[jobs/signal] Trade aberto: ${symbol}`);
       }
       exitsCount += result.exits.length;
-      if (result.signal) signalsCount += 1;
+      if (result.signal?.side === "LONG") signalsCount += 1;
       if (result.binanceOrderError) {
         log.warn({ symbol, error: result.binanceOrderError }, `[jobs/signal] Erro ordem Binance: ${symbol}`);
       }
