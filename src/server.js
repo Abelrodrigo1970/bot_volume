@@ -13,7 +13,7 @@ app.get("/", async (_request, reply) => reply.redirect("/dashboard", 302));
 app.get("/health", async () => ({ ok: true }));
 
 await registerJobRoutes(app, config);
-await registerDashboardRoutes(app);
+await registerDashboardRoutes(app, config);
 
 const shutdown = async () => {
   await app.close();

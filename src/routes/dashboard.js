@@ -1,4 +1,5 @@
 import { prisma } from "../db/client.js";
+import { startSignalJob } from "./jobs.js";
 
 function pct(win, total) {
   if (total === 0) {
@@ -11,7 +12,32 @@ function currency(value) {
   return Number(value).toFixed(2);
 }
 
-export async function registerDashboardRoutes(app) {
+function formatDateTime(date) {
+  const d = new Date(date);
+  return d.toLocaleString("pt-PT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
+
+export async function registerDashboardRoutes(app, config) {
+  app.get("/dashboard/trigger-job", async (request, reply) => {
+    try {
+      const result = await startSignalJob(config, app.log);
+      return reply.send(result);
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({
+        ok: false,
+        message: err instanceof Error ? err.message : "Erro ao iniciar procura"
+      });
+    }
+  });
+
   app.get("/dashboard/stats", async () => {
     const [totalTrades, openTrades, closedTrades, exits, jobRuns] =
       await Promise.all([
@@ -79,6 +105,10 @@ export async function registerDashboardRoutes(app) {
                 `${exit.reason}: qty ${exit.quantity.toFixed(6)} @ ${currency(exit.price)}`
             )
             .join(" | ") || "-";
+        const openedAtStr = formatDateTime(trade.openedAt);
+        const closedAtStr = trade.closedAt
+          ? formatDateTime(trade.closedAt)
+          : "-";
         return `<tr>
           <td>${trade.symbol}</td>
           <td>${trade.status}</td>
@@ -86,7 +116,8 @@ export async function registerDashboardRoutes(app) {
           <td>${trade.quantity.toFixed(6)}</td>
           <td>${trade.remainingQty.toFixed(6)}</td>
           <td>${currency(trade.realizedPnlUsd)}</td>
-          <td>${new Date(trade.openedAt).toISOString()}</td>
+          <td>${openedAtStr}</td>
+          <td>${closedAtStr}</td>
           <td>${exitsText}</td>
         </tr>`;
       })
@@ -112,6 +143,11 @@ export async function registerDashboardRoutes(app) {
   <h1>Binance Futures - Volume Spike Bot</h1>
   <div class="grid">
     <div class="card"><strong>Total trades</strong><br>${payload.totalTrades}</div>
+    <div class="card">
+      <strong>Executar procura</strong><br>
+      <button id="btn-trigger" type="button" style="margin-top:6px;padding:6px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;">Executar procura</button>
+      <span id="trigger-msg" style="margin-left:8px;font-size:12px;"></span>
+    </div>
     <div class="card"><strong>Open trades</strong><br>${payload.openTrades}</div>
     <div class="card"><strong>Closed trades</strong><br>${payload.closedTrades}</div>
     <div class="card"><strong>Win rate</strong><br>${payload.winRate.toFixed(2)}%</div>
@@ -119,7 +155,7 @@ export async function registerDashboardRoutes(app) {
     <div class="card"><strong>Total exits</strong><br>${payload.exitsCount}</div>
   </div>
 
-  <h2>Recent Trades</h2>
+  <h2>Histórico de Trades</h2>
   <table>
     <thead>
       <tr>
@@ -129,12 +165,31 @@ export async function registerDashboardRoutes(app) {
         <th>Qty</th>
         <th>Remaining</th>
         <th>PNL USD</th>
-        <th>Opened At</th>
+        <th>Data/Hora abertura</th>
+        <th>Data/Hora fecho</th>
         <th>Exits</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>
+  <script>
+    document.getElementById('btn-trigger').onclick = function() {
+      var btn = this;
+      var msg = document.getElementById('trigger-msg');
+      btn.disabled = true;
+      msg.textContent = 'A iniciar...';
+      fetch('/dashboard/trigger-job')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          msg.textContent = d.ok ? 'Procura iniciada (runId: ' + d.runId + ')' : (d.message || 'Erro');
+          btn.disabled = false;
+        })
+        .catch(function() {
+          msg.textContent = 'Erro de rede';
+          btn.disabled = false;
+        });
+    };
+  </script>
 </body>
 </html>`;
 

@@ -100,6 +100,30 @@ async function handleJobsSignal(request, reply, config, log) {
   });
 }
 
+export async function startSignalJob(config, log) {
+  const symbols = config.useDynamicSymbols
+    ? await getFuturesSymbols(config.symbolLimit)
+    : config.symbols;
+
+  const jobRun = await prisma.jobRun.create({
+    data: {
+      source: "dashboard",
+      symbols:
+        symbols.length > 100
+          ? `dynamic (${symbols.length} symbols)`
+          : symbols.join(",")
+    }
+  });
+
+  runJobInBackground(jobRun.id, symbols, config, log);
+
+  return {
+    ok: true,
+    message: `Procura iniciada em background (${symbols.length} símbolos)`,
+    runId: jobRun.id
+  };
+}
+
 export async function registerJobRoutes(app, config) {
   const handler = (request, reply) =>
     handleJobsSignal(request, reply, config, app.log);
