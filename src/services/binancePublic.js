@@ -1,4 +1,7 @@
-const BASE_URL = "https://fapi.binance.com";
+const BASE_URL =
+  process.env.BINANCE_TESTNET === "false" || process.env.BINANCE_TESTNET === "0"
+    ? "https://fapi.binance.com"
+    : "https://testnet.binancefuture.com";
 
 function toNumber(value) {
   return Number.parseFloat(value);

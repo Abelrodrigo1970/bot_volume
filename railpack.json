@@ -2,6 +2,6 @@
   "$schema": "https://schema.railpack.com",
   "provider": "node",
   "deploy": {
-    "startCommand": "node src/server.js"
+    "startCommand": "prisma db push && node src/server.js"
   }
 }

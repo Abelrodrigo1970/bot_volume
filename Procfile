@@ -1,1 +1,1 @@
-web: node src/server.js
+web: prisma db push && node src/server.js

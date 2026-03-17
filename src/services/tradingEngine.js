@@ -1,5 +1,6 @@
 import { prisma } from "../db/client.js";
 import { fetchKlines, fetchMarkPrice } from "./binancePublic.js";
+import { placeMarketOrder } from "./binancePrivate.js";
 import { generateVolumeSpikeSignal } from "./strategy/volumeSpike.js";
 
 function hoursBetween(a, b) {
@@ -71,6 +72,21 @@ export async function processSymbol(symbol, config) {
 
   const entryPrice = candles[candles.length - 1].close;
   const quantity = config.BUY_NOTIONAL_USD / entryPrice;
+
+  if (config.binanceTradingEnabled) {
+    try {
+      await placeMarketOrder({
+        apiKey: config.BINANCE_API_KEY,
+        apiSecret: config.BINANCE_API_SECRET,
+        symbol,
+        side: "BUY",
+        quantity
+      });
+    } catch (err) {
+      result.binanceOrderError = err.message;
+      return result;
+    }
+  }
 
   await prisma.trade.create({
     data: {
@@ -150,6 +166,19 @@ async function maybeExecuteExits(trade, currentPrice, config) {
 
   if (exits.length === 0) {
     return [];
+  }
+
+  if (config.binanceTradingEnabled) {
+    for (const exit of exits) {
+      await placeMarketOrder({
+        apiKey: config.BINANCE_API_KEY,
+        apiSecret: config.BINANCE_API_SECRET,
+        symbol: trade.symbol,
+        side: "SELL",
+        quantity: exit.quantity,
+        reduceOnly: true
+      });
+    }
   }
 
   const firstTp1 = exits.find((exit) => exit.reason === "TP1");
