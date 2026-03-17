@@ -1,5 +1,6 @@
 import { prisma } from "../db/client.js";
 import { processSymbol } from "../services/tradingEngine.js";
+import { getFuturesSymbols } from "../services/binancePublic.js";
 
 function getCronTokenFromRequest(request) {
   const header = request.headers["x-cron-token"];
@@ -16,10 +17,17 @@ export async function registerJobRoutes(app, config) {
       return reply.code(401).send({ error: "Unauthorized" });
     }
 
+    const symbols = config.useDynamicSymbols
+      ? await getFuturesSymbols(config.symbolLimit)
+      : config.symbols;
+
     const jobRun = await prisma.jobRun.create({
       data: {
         source: "cron-job.org",
-        symbols: config.symbols.join(",")
+        symbols:
+          symbols.length > 100
+            ? `dynamic (${symbols.length} symbols)`
+            : symbols.join(",")
       }
     });
 
@@ -29,7 +37,7 @@ export async function registerJobRoutes(app, config) {
       let exitsCount = 0;
       let signalsCount = 0;
 
-      for (const symbol of config.symbols) {
+      for (const symbol of symbols) {
         const result = await processSymbol(symbol, config);
         bySymbol.push(result);
         if (result.openedTrade) {

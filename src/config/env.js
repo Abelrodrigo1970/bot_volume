@@ -8,6 +8,11 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   DATABASE_URL: z.string().min(1),
   SYMBOLS: z.string().default("BTCUSDT"),
+  USE_DYNAMIC_SYMBOLS: z
+    .string()
+    .transform((v) => v === "true" || v === "1")
+    .default("true"),
+  SYMBOL_LIMIT: z.coerce.number().int().min(1).max(1000).default(500),
   INTERVAL: z.string().default("1h"),
   VOLUME_WINDOW: z.coerce.number().int().positive().default(20),
   SPIKE_MULTIPLIER: z.coerce.number().positive().default(6),
@@ -34,6 +39,8 @@ if (env.TP1_SELL_PCT + env.TP2_SELL_PCT >= 100) {
 
 export const config = {
   ...env,
+  useDynamicSymbols: env.USE_DYNAMIC_SYMBOLS,
+  symbolLimit: env.SYMBOL_LIMIT,
   symbols: env.SYMBOLS.split(",")
     .map((symbol) => symbol.trim().toUpperCase())
     .filter(Boolean)

@@ -4,6 +4,36 @@ function toNumber(value) {
   return Number.parseFloat(value);
 }
 
+/**
+ * Fetch exchange info (symbols, filters) from Binance Futures.
+ */
+export async function fetchExchangeInfo() {
+  const url = new URL("/fapi/v1/exchangeInfo", BASE_URL);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Binance exchangeInfo error ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get list of USDT perpetual symbols, up to `limit` (default 500).
+ * Filters: contractType PERPETUAL, quoteAsset USDT, status TRADING.
+ */
+export async function getFuturesSymbols(limit = 500) {
+  const info = await fetchExchangeInfo();
+  const symbols = (info.symbols || [])
+    .filter(
+      (s) =>
+        s.contractType === "PERPETUAL" &&
+        s.quoteAsset === "USDT" &&
+        s.status === "TRADING"
+    )
+    .map((s) => s.symbol)
+    .slice(0, limit);
+  return symbols;
+}
+
 export async function fetchKlines({ symbol, interval = "1h", limit = 21 }) {
   const url = new URL("/fapi/v1/klines", BASE_URL);
   url.searchParams.set("symbol", symbol);
