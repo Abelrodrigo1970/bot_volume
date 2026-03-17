@@ -10,19 +10,35 @@ function getCronTokenFromRequest(request) {
   return Array.isArray(header) ? header[0] : header;
 }
 
-async function runJobInBackground(jobRunId, symbols, config) {
+async function runJobInBackground(jobRunId, symbols, config, log) {
+  const total = symbols.length;
+  log.info({ jobRunId, total }, `[jobs/signal] Início da busca em ${total} símbolos`);
+
   try {
     const bySymbol = [];
     let openedTrades = 0;
     let exitsCount = 0;
     let signalsCount = 0;
+    const logEvery = Math.max(1, Math.floor(total / 10));
 
-    for (const symbol of symbols) {
+    for (let i = 0; i < symbols.length; i++) {
+      const symbol = symbols[i];
       const result = await processSymbol(symbol, config);
       bySymbol.push(result);
-      if (result.openedTrade) openedTrades += 1;
+      if (result.openedTrade) {
+        openedTrades += 1;
+        log.info({ symbol, jobRunId }, `[jobs/signal] Trade aberto: ${symbol}`);
+      }
       exitsCount += result.exits.length;
       if (result.signal) signalsCount += 1;
+      if (result.binanceOrderError) {
+        log.warn({ symbol, error: result.binanceOrderError }, `[jobs/signal] Erro ordem Binance: ${symbol}`);
+      }
+
+      const done = i + 1;
+      if (done % logEvery === 0 || done === total) {
+        log.info({ jobRunId, done, total }, `[jobs/signal] Busca: ${done}/${total} símbolos`);
+      }
     }
 
     await prisma.jobRun.update({
@@ -35,7 +51,13 @@ async function runJobInBackground(jobRunId, symbols, config) {
         signalsCount
       }
     });
+
+    log.info(
+      { jobRunId, openedTrades, exitsCount, signalsCount },
+      `[jobs/signal] Fim da busca: ${openedTrades} trades abertos, ${exitsCount} saídas, ${signalsCount} sinais`
+    );
   } catch (error) {
+    log.error({ err: error, jobRunId }, `[jobs/signal] Erro na busca: ${error?.message}`);
     await prisma.jobRun
       .update({
         where: { id: jobRunId },
@@ -49,7 +71,7 @@ async function runJobInBackground(jobRunId, symbols, config) {
   }
 }
 
-async function handleJobsSignal(request, reply, config) {
+async function handleJobsSignal(request, reply, config, log) {
   const token = getCronTokenFromRequest(request);
   if (token !== config.CRON_TOKEN) {
     return reply.code(401).send({ error: "Unauthorized" });
@@ -69,7 +91,7 @@ async function handleJobsSignal(request, reply, config) {
     }
   });
 
-  runJobInBackground(jobRun.id, symbols, config);
+  runJobInBackground(jobRun.id, symbols, config, log);
 
   return reply.send({
     ok: true,
@@ -79,7 +101,8 @@ async function handleJobsSignal(request, reply, config) {
 }
 
 export async function registerJobRoutes(app, config) {
-  const handler = (request, reply) => handleJobsSignal(request, reply, config);
+  const handler = (request, reply) =>
+    handleJobsSignal(request, reply, config, app.log);
   app.get("/jobs/signal", handler);
   app.post("/jobs/signal", handler);
 }
