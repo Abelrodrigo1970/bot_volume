@@ -9,7 +9,7 @@ const app = Fastify({
   logger: true
 });
 
-app.get("/", async (_request, reply) => reply.redirect(302, "/dashboard"));
+app.get("/", async (_request, reply) => reply.redirect("/dashboard", 302));
 app.get("/health", async () => ({ ok: true }));
 
 await registerJobRoutes(app, config);
