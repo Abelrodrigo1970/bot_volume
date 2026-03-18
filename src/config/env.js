@@ -13,6 +13,9 @@ const envSchema = z.object({
     .transform((v) => v === "true" || v === "1")
     .default("true"),
   SYMBOL_LIMIT: z.coerce.number().int().min(1).max(1000).default(500),
+  SYMBOL_SORT: z
+    .enum(["gain24h", "volume", "symbol", "none"])
+    .default("gain24h"),
   INTERVAL: z.string().default("15m"),
   VOLUME_WINDOW: z.coerce.number().int().positive().default(20),
   SPIKE_MULTIPLIER: z.coerce.number().positive().default(6),
@@ -52,6 +55,7 @@ export const config = {
   ...env,
   useDynamicSymbols: env.USE_DYNAMIC_SYMBOLS,
   symbolLimit: env.SYMBOL_LIMIT,
+  symbolSort: env.SYMBOL_SORT,
   binanceBaseUrl,
   binanceTradingEnabled:
     Boolean(env.BINANCE_API_KEY) && Boolean(env.BINANCE_API_SECRET),

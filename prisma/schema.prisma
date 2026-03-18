@@ -39,24 +39,25 @@ model Signal {
 }
 
 model Trade {
-  id               String      @id @default(cuid())
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  signalId         String?     @unique
-  signal           Signal?     @relation(fields: [signalId], references: [id])
-  symbol           String
-  status           TradeStatus @default(OPEN)
-  entryPrice       Float
-  quantity         Float
-  remainingQty     Float
-  notionalUsd      Float
-  openedAt         DateTime
-  closedAt         DateTime?
-  realizedPnlUsd   Float       @default(0)
-  tp1ExecutedAt    DateTime?
-  tp2ExecutedAt    DateTime?
-  timeExitExecuted Boolean     @default(false)
-  exits            TradeExit[]
+  id                   String      @id @default(cuid())
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  signalId             String?     @unique
+  signal               Signal?     @relation(fields: [signalId], references: [id])
+  symbol               String
+  status               TradeStatus @default(OPEN)
+  entryPrice           Float
+  quantity             Float
+  remainingQty         Float
+  notionalUsd          Float
+  openedAt             DateTime
+  closedAt             DateTime?
+  realizedPnlUsd       Float       @default(0)
+  tp1ExecutedAt        DateTime?
+  tp2ExecutedAt        DateTime?
+  timeExitExecuted     Boolean     @default(false)
+  binanceOrderFilled   Boolean     @default(true)
+  exits                TradeExit[]
 }
 
 model TradeExit {

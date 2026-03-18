@@ -73,6 +73,7 @@ export async function processSymbol(symbol, config) {
   const entryPrice = candles[candles.length - 1].close;
   const quantity = config.BUY_NOTIONAL_USD / entryPrice;
 
+  let binanceOrderFilled = true;
   if (config.binanceTradingEnabled) {
     try {
       await placeMarketOrder({
@@ -84,7 +85,7 @@ export async function processSymbol(symbol, config) {
       });
     } catch (err) {
       result.binanceOrderError = err.message;
-      return result;
+      binanceOrderFilled = false;
     }
   }
 
@@ -97,7 +98,8 @@ export async function processSymbol(symbol, config) {
       quantity,
       remainingQty: quantity,
       notionalUsd: config.BUY_NOTIONAL_USD,
-      openedAt: new Date()
+      openedAt: new Date(),
+      binanceOrderFilled
     }
   });
   result.openedTrade = true;
@@ -168,7 +170,7 @@ async function maybeExecuteExits(trade, currentPrice, config) {
     return [];
   }
 
-  if (config.binanceTradingEnabled) {
+  if (config.binanceTradingEnabled && trade.binanceOrderFilled) {
     for (const exit of exits) {
       await placeMarketOrder({
         apiKey: config.BINANCE_API_KEY,

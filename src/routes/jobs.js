@@ -78,7 +78,7 @@ async function handleJobsSignal(request, reply, config, log) {
   }
 
   const symbols = config.useDynamicSymbols
-    ? await getFuturesSymbols(config.symbolLimit)
+    ? await getFuturesSymbols(config.symbolLimit, config.symbolSort)
     : config.symbols;
 
   const jobRun = await prisma.jobRun.create({
@@ -102,7 +102,7 @@ async function handleJobsSignal(request, reply, config, log) {
 
 export async function startSignalJob(config, log) {
   const symbols = config.useDynamicSymbols
-    ? await getFuturesSymbols(config.symbolLimit)
+    ? await getFuturesSymbols(config.symbolLimit, config.symbolSort)
     : config.symbols;
 
   const jobRun = await prisma.jobRun.create({
