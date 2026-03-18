@@ -18,6 +18,7 @@ const envSchema = z.object({
     .default("gain24h"),
   INTERVAL: z.string().default("15m"),
   VOLUME_WINDOW: z.coerce.number().int().positive().default(20),
+  MA_PERIODS: z.coerce.number().int().positive().default(200),
   SPIKE_MULTIPLIER: z.coerce.number().positive().default(6),
   BUY_NOTIONAL_USD: z.coerce.number().positive().default(100),
   TP1_PCT: z.coerce.number().positive().default(9),

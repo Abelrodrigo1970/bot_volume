@@ -152,7 +152,7 @@ export async function registerDashboardRoutes(app, config) {
 </head>
 <body>
   <h1>Binance Futures - Volume Spike Bot</h1>
-  <p style="font-size:13px;color:#9ca3af;margin:0 0 12px;">Estratégia: intervalo <strong>${config.INTERVAL}</strong>, janela <strong>${config.VOLUME_WINDOW}</strong> velas, spike ≥<strong>${config.SPIKE_MULTIPLIER}×</strong> média + vela bullish. Símbolos ordenados por: <strong>${config.symbolSort}</strong> (gain24h = maiores ganhos % 24h primeiro). Variables: INTERVAL, VOLUME_WINDOW, SPIKE_MULTIPLIER, SYMBOL_SORT.</p>
+  <p style="font-size:13px;color:#9ca3af;margin:0 0 12px;">Estratégia: intervalo <strong>${config.INTERVAL}</strong>, janela <strong>${config.VOLUME_WINDOW}</strong> velas, spike ≥<strong>${config.SPIKE_MULTIPLIER}×</strong> média. LONG se: vela bullish OU (vela bear e close &gt; MA(${config.MA_PERIODS ?? 200})). Símbolos: <strong>${config.symbolSort}</strong>. Variables: INTERVAL, VOLUME_WINDOW, MA_PERIODS, SPIKE_MULTIPLIER, SYMBOL_SORT.</p>
   <div class="grid">
     <div class="card"><strong>Total trades</strong><br>${payload.totalTrades}</div>
     <div class="card">

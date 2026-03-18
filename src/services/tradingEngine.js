@@ -39,16 +39,21 @@ export async function processSymbol(symbol, config) {
     return result;
   }
 
+  const klinesLimit = Math.max(
+    config.VOLUME_WINDOW + 2,
+    (config.MA_PERIODS ?? 200) + 2
+  );
   const candles = await fetchKlines({
     symbol,
     interval: config.INTERVAL,
-    limit: config.VOLUME_WINDOW + 1
+    limit: klinesLimit
   });
 
   const signalData = generateVolumeSpikeSignal({
     candles,
     volumeWindow: config.VOLUME_WINDOW,
-    spikeMultiplier: config.SPIKE_MULTIPLIER
+    spikeMultiplier: config.SPIKE_MULTIPLIER,
+    maPeriods: config.MA_PERIODS ?? 200
   });
 
   const signal = await prisma.signal.create({
@@ -70,7 +75,8 @@ export async function processSymbol(symbol, config) {
     return result;
   }
 
-  const entryPrice = candles[candles.length - 1].close;
+  const lastClosedCandle = candles[candles.length - 2];
+  const entryPrice = lastClosedCandle.close;
   const quantity = config.BUY_NOTIONAL_USD / entryPrice;
 
   let binanceOrderFilled = true;
