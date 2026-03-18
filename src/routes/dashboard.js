@@ -24,6 +24,14 @@ function formatDateTime(date) {
   });
 }
 
+function formatVolume(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "-";
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(2) + "K";
+  return n.toFixed(2);
+}
+
 export async function registerDashboardRoutes(app, config) {
   app.get("/dashboard/trigger-job", async (request, reply) => {
     try {
@@ -123,7 +131,7 @@ export async function registerDashboardRoutes(app, config) {
         return `<tr>
           <td>${symbolCell}</td>
           <td>${trade.status}</td>
-          <td>${currency(trade.entryPrice)}</td>
+          <td>${Number(trade.entryPrice).toFixed(6)}</td>
           <td>${trade.quantity.toFixed(6)}</td>
           <td>${trade.remainingQty.toFixed(6)}</td>
           <td>${currency(trade.realizedPnlUsd)}</td>
@@ -213,6 +221,8 @@ export async function registerDashboardRoutes(app, config) {
         <th>Symbol</th>
         <th>Data/Hora</th>
         <th>Spike (×média)</th>
+        <th>Média 20 velas</th>
+        <th>Volume vela entrada</th>
         <th>Motivo</th>
       </tr>
     </thead>
@@ -224,11 +234,13 @@ export async function registerDashboardRoutes(app, config) {
           <td>${s.symbol}</td>
           <td>${formatDateTime(s.createdAt)}</td>
           <td>${Number(s.spikeRatio).toFixed(2)}×</td>
+          <td>${formatVolume(s.averageVolume)}</td>
+          <td>${formatVolume(s.currentVolume)}</td>
           <td style="max-width:220px;">${s.reason || "-"}</td>
         </tr>`
         )
         .join("")}
-      ${recentLongSignals.length === 0 ? "<tr><td colspan='4'>Nenhum sinal LONG registado ainda.</td></tr>" : ""}
+      ${recentLongSignals.length === 0 ? "<tr><td colspan='6'>Nenhum sinal LONG registado ainda.</td></tr>" : ""}
     </tbody>
   </table>
 
